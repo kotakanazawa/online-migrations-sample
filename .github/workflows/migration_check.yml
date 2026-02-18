@@ -1,12 +1,12 @@
 name: Migration Check
 
 on:
-  push:
-    paths:
-      - 'db/migrate/**'
   pull_request:
     paths:
       - 'db/migrate/**'
+
+permissions:
+  pull-requests: write
 
 jobs:
   migrate:
@@ -31,9 +31,25 @@ jobs:
           bundler-cache: true
 
       - name: Run migrations
+        id: migrate
+        continue-on-error: true
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:password@localhost:5432/online_migrations_sample_test
-        run: |
-          bin/rails db:create db:migrate
-          echo "マイグレーションが成功したよ！"
+        run: bin/rails db:create db:migrate
+
+      - name: Add invalid label if migration failed
+        if: steps.migrate.outcome == 'failure'
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "invalid"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Remove invalid label if migration passed
+        if: steps.migrate.outcome == 'success'
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label "invalid" || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Fail if migration was unsafe
+        if: steps.migrate.outcome == 'failure'
+        run: exit 1
