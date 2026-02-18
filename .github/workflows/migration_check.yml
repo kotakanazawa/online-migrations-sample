@@ -38,15 +38,34 @@ jobs:
           DATABASE_URL: postgres://postgres:password@localhost:5432/online_migrations_sample_test
         run: bin/rails db:create db:migrate
 
-      - name: Add invalid label if migration failed
+      - name: Classify risk level
+        id: classify
         if: steps.migrate.outcome == 'failure'
-        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "invalid"
+        run: |
+          HIGH_PATTERN="remove_column|drop_table|change_column|rename_column|force:[[:space:]]*true"
+          if grep -rqE "$HIGH_PATTERN" db/migrate/; then
+            echo "level=high" >> "$GITHUB_OUTPUT"
+          else
+            echo "level=middle" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add Risk High label
+        if: ${{ steps.migrate.outcome == 'failure' && steps.classify.outputs.level == 'high' }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: High"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Remove invalid label if migration passed
+      - name: Add Risk Middle label
+        if: ${{ steps.migrate.outcome == 'failure' && steps.classify.outputs.level == 'middle' }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: Middle"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Remove risk labels if migration passed
         if: steps.migrate.outcome == 'success'
-        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label "invalid" || true
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "Risk: High" || true
+          gh pr edit ${{ github.event.pull_request.number }} --remove-label "Risk: Middle" || true
         env:
           GH_TOKEN: ${{ github.token }}
 
