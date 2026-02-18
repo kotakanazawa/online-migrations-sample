@@ -52,13 +52,13 @@ jobs:
 
       - name: Add Risk High label
         if: ${{ steps.migrate.outcome == 'failure' && steps.classify.outputs.level == 'high' }}
-        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: High"
+        run: 'gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: High"'
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Add Risk Middle label
         if: ${{ steps.migrate.outcome == 'failure' && steps.classify.outputs.level == 'middle' }}
-        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: Middle"
+        run: 'gh pr edit ${{ github.event.pull_request.number }} --add-label "Risk: Middle"'
         env:
           GH_TOKEN: ${{ github.token }}
 
