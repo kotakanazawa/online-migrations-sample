@@ -1,0 +1,39 @@
+name: Migration Check
+
+on:
+  push:
+    paths:
+      - 'db/migrate/**'
+  pull_request:
+    paths:
+      - 'db/migrate/**'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Run migrations
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://postgres:password@localhost:5432/online_migrations_sample_test
+        run: |
+          bin/rails db:create db:migrate
+          echo "マイグレーションが成功したよ！"
